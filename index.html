@@ -783,15 +783,16 @@
           <p id="v-text"></p>
           <ul class="reasons" id="v-reasons"></ul>
         </div>
+        <div id="sendStatus" class="send-status" role="status" aria-live="polite"></div>
         <div class="result-cta">
-          <a class="btn btn-orange" id="mailBtn">שלחו את הפרטים במייל ←</a>
+          <a class="btn btn-orange" id="mailBtn" style="display:none">שלחו את הפרטים במייל ←</a>
           <a class="btn btn-wa" href="https://wa.me/972533314144" target="_blank" rel="noopener"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.5 14.4c-.3-.2-1.7-.8-2-.9-.3-.1-.5-.2-.7.2-.2.3-.7.9-.9 1.1-.2.2-.3.2-.6.1-.3-.2-1.2-.4-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.5.1-.6.1-.1.3-.3.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.5-.1-.1-.7-1.6-.9-2.2-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.2.2 2.1 3.2 5.1 4.5.7.3 1.3.5 1.7.6.7.2 1.4.2 1.9.1.6-.1 1.7-.7 2-1.4.2-.7.2-1.2.2-1.4-.1-.1-.3-.2-.6-.3z"/><path d="M12 2a10 10 0 0 0-8.6 15l-1.3 4.8 4.9-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-2.9.8.8-2.8-.2-.3A8.2 8.2 0 1 1 12 20.2z"/></svg> שלחו הודעה בוואטסאפ</a>
         </div>
         <div class="copywrap">
           <div style="font-weight:800;font-size:14px;margin-bottom:6px;color:var(--ink)">סיכום הפנייה (אפשר להעתיק / לצרף עם המסמכים):</div>
           <textarea id="summaryBox" readonly></textarea>
         </div>
-        <p style="color:var(--muted);font-size:12.8px;margin-top:14px">לצירוף המסמכים שבחרתם — צרפו אותם למייל שייפתח, או שלחו ל-sassi@lev-lawfirm.com. הבדיקה היא אינדיקציה ראשונית בלבד ואינה חוות דעת משפטית.</p>
+        <p style="color:var(--muted);font-size:12.8px;margin-top:14px">הפרטים נשלחים אלינו אוטומטית עם סיום השאלון. לצירוף המסמכים שבחרתם — שלחו אותם בוואטסאפ או למייל sassi@lev-lawfirm.com. הבדיקה היא אינדיקציה ראשונית בלבד ואינה חוות דעת משפטית.</p>
       </div>
     </div>
   </div>
@@ -1053,14 +1054,14 @@ function computeScore(){
    ששי: צרו Access Key חינמי ב-https://web3forms.com (רישום עם sassi@lev-lawfirm.com),
    והדביקו אותו ב-WEB3_KEY כדי שכל ליד יישלח אוטומטית למייל. עד אז כפתור "שלחו במייל" עובד דרך תוכנת המייל. */
 var WEB3_KEY="8abbf27b-3d72-49f2-9bd2-bd74ac2b0042";
-function sendLeadEmail(subject, body){
-  if(!WEB3_KEY) return false;
-  try{
-    fetch("https://api.web3forms.com/submit",{method:"POST",
-      headers:{"Content-Type":"application/json","Accept":"application/json"},
-      body:JSON.stringify({access_key:WEB3_KEY,subject:subject,from_name:"ליד מהאתר — בדיקת עילה",message:body})});
-    return true;
-  }catch(e){return false;}
+function sendLeadEmail(subject, body, extra){
+  if(!WEB3_KEY) return Promise.resolve(false);
+  var payload={access_key:WEB3_KEY,subject:subject,from_name:"ליד מהאתר — בדיקת עילה",message:body};
+  if(extra){for(var k in extra){if(extra[k])payload[k]=extra[k];}}
+  return fetch("https://api.web3forms.com/submit",{method:"POST",
+    headers:{"Content-Type":"application/json","Accept":"application/json"},
+    body:JSON.stringify(payload)})
+    .then(function(res){return res.ok;}).catch(function(){return false;});
 }
 function submit(){
   var name=document.getElementById('f-name').value.trim(), phone=document.getElementById('f-phone').value.trim();
@@ -1107,8 +1108,23 @@ function submit(){
   var desc=document.getElementById('f-desc').value.trim(); if(desc) msg+='תיאור: '+desc+'\n';
 
   document.getElementById('summaryBox').value=msg;
-  document.getElementById('mailBtn').href='mailto:sassi@lev-lawfirm.com?subject='+encodeURIComponent('פנייה — בדיקת עילה (רכב מסוחר)')+'&body='+encodeURIComponent(msg);
-  sendLeadEmail('פנייה — בדיקת עילה (רכב מסוחר)', msg);
+  var mb=document.getElementById('mailBtn');
+  mb.href='mailto:sassi@lev-lawfirm.com?subject='+encodeURIComponent('פנייה — בדיקת עילה (רכב מסוחר)')+'&body='+encodeURIComponent(msg);
+  mb.style.display='none';
+  var st=document.getElementById('sendStatus');
+  var sCss='margin:0 0 14px;padding:12px 16px;border-radius:12px;font-weight:700;font-size:14.5px;';
+  if(st){st.style.cssText=sCss+'background:var(--slate-soft);color:var(--slate)';st.textContent='שולח את הפרטים...';}
+  sendLeadEmail('פנייה — בדיקת עילה (רכב מסוחר)', msg, {name:name, phone:phone}).then(function(ok){
+    if(!st) return;
+    if(ok){
+      st.style.cssText=sCss+'font-weight:800;background:var(--green-soft);color:var(--green)';
+      st.textContent='\u2713 הפרטים נשלחו אוטומטית לעו"ד ששי לב — ניצור איתך קשר בהקדם.';
+    } else {
+      st.style.cssText=sCss+'background:var(--amber-soft);color:var(--amber)';
+      st.textContent='לא הצלחנו לשלוח אוטומטית — אפשר לשלוח במייל או בוואטסאפ:';
+      mb.style.display='';
+    }
+  });
 
   /* hide wizard inputs, show result */
   document.getElementById('wizStage').style.display='none';
